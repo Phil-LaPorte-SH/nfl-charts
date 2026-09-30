@@ -35,7 +35,7 @@ export default function ShareDialog({ state, title, onClose }) {
         {out && (
           <>
             <p className={live ? 'ok-text' : 'muted'}>
-              {live === null && <><span className="spinner inline" /> Published. GitHub Pages usually takes about a minute before the links work…</>}
+              {live === null && <><span className="spinner inline" /> Published. GitHub Pages needs about a minute before these links work; until then they show a 404. You can copy them now, but wait for the green “Live” before opening or posting.</>}
               {live === true && '● Live. The links work now.'}
               {live === false && 'Still not live after 4 minutes. The links should work shortly; check the repo’s Pages build if not.'}
             </p>
@@ -43,7 +43,10 @@ export default function ShareDialog({ state, title, onClose }) {
             <CopyRow label="Direct image" hint="for image link posts and forums" value={out.imageUrl} />
             <CopyRow label="Markdown" hint="for a Reddit comment" value={`[${title}](${out.pageUrl})`} />
             <p className="faint small">In Reddit comments, links don't show the image inline. To show the image in a comment, use <b>Copy image</b> and paste it into the comment box, if the subreddit allows images.</p>
-            <p className="small"><a href={out.pageUrl} target="_blank" rel="noreferrer">Open page</a> · <a href={out.galleryUrl} target="_blank" rel="noreferrer">All shared charts</a></p>
+            <p className="small">
+              {live ? <a href={out.pageUrl} target="_blank" rel="noreferrer">Open page</a> : <span className="faint">Open page (when live)</span>}
+              {' · '}<a href={out.galleryUrl} target="_blank" rel="noreferrer">All shared charts</a>
+            </p>
           </>
         )}
         <div className="modal-actions"><span className="spacer" /><button className="btn" onClick={onClose}>Close</button></div>
