@@ -38,7 +38,9 @@ function makeStream(params, opts) {
   const lastResult = Array.isArray(lastUser.content) ? lastUser.content.find((b) => b.type === 'tool_result') : null
   let parsed = {}
   try { parsed = lastResult ? JSON.parse(lastResult.content) : {} } catch { /* not json */ }
-  const step = lastResult ? 1 : 0
+  // A new question (text block) restarts the script, even when merged after tool results.
+  const hasQuestion = Array.isArray(lastUser.content) ? lastUser.content.some((b) => b.type === 'text') : true
+  const step = lastResult && !hasQuestion ? 1 : 0
   const s = SCRIPT[step](parsed)
   const finalMessage = async () => {
     const wait = (ms) => new Promise((r, j) => {

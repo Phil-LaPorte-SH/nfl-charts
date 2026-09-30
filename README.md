@@ -30,6 +30,15 @@ question ──► Claude (your key, from the browser)
   stacked columns, donuts, tables, and stat tiles; portrait, square, landscape or story sizes; team, light or dark
   themes. Every chart can be edited (title, type, highlight, theme, size) without another model call.
 
+## Images and saved chats
+
+- **Images:** drop, paste, or attach up to 4 images per question (a chart from social media, a box score). Claude reads
+  them and can recreate the chart from nflverse data or check its numbers. Images are downscaled in the browser first.
+- **Saved chats:** every chat saves automatically in this browser (IndexedDB) with its questions, images, queries,
+  results, charts and edits. Open the ☰ drawer to reopen, search or delete chats; each chat has its own URL
+  (`#/chat/<id>`). Reopened chats continue where they left off: API-mode chats replay their message history, and
+  Claude-plan chats resume the same Claude Code session. Localhost and the hosted site keep separate lists.
+
 ## Use your Claude plan instead of an API key (local only)
 
 When you run the app locally with `npm run dev`, it can answer questions through the Claude Code CLI on your machine

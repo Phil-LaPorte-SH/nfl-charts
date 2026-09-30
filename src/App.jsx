@@ -12,6 +12,6 @@ export default function App() {
   if (route.startsWith('/debug')) page = <DebugPage />
   else if (route.startsWith('/dev/gallery')) page = <GalleryPage />
   else if (route.startsWith('/dev/eval')) page = <EvalPage />
-  else page = <ChatPage />
+  else page = <ChatPage route={route} />
   return <Suspense fallback={<div className="page-loading">Loading…</div>}>{page}</Suspense>
 }

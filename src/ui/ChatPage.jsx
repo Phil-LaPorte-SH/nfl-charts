@@ -13,6 +13,8 @@ import { addSpend, getSpend } from '../llm/cost.js'
 import { getMockClient, mockEnabled } from '../llm/mockClient.js'
 import { getBridgeStatus, runViaClaudeCode } from '../llm/claudeCodeRunner.js'
 import { fileToImage, imageBlocks, isImageFile, MAX_IMAGES } from '../llm/images.js'
+import HistoryPanel from './HistoryPanel.jsx'
+import { saveChat, getChat, newChatId, stripImages, restoreImages } from '../state/chatStore.js'
 
 const EXAMPLES = [
   'Which teams draw the most defensive penalties that save a failed 3rd or 4th down? Mahomes era, highlight KC.',
@@ -36,7 +38,8 @@ function appendUser(history, blocks) {
   }
 }
 
-export default function ChatPage() {
+export default function ChatPage({ route = '/' }) {
+  const routeChatId = route.match(/^\/chat\/([\w-]+)/)?.[1] || null
   const [settings, update] = useSettings()
   const [manifest, setManifest] = useState(null)
   const [dataError, setDataError] = useState(null)
@@ -58,6 +61,11 @@ export default function ChatPage() {
   const pendingRef = useRef(null)
   const sessionRef = useRef(null)
   const [bridge, setBridge] = useState({ available: false })
+  const chatIdRef = useRef(null)
+  const chatInfo = useRef({ createdAt: 0, engine: null })
+  const [showHistory, setShowHistory] = useState(false)
+  const [historyKey, setHistoryKey] = useState(0)
+  const [loadNote, setLoadNote] = useState(null)
   const engine = !mockEnabled() && bridge.available && settings.engine !== 'api' ? 'plan' : 'api'
 
   useEffect(() => { applyThemeAttr(settings.theme) }, [settings.theme])
@@ -65,6 +73,64 @@ export default function ChatPage() {
   useEffect(() => {
     getManifest().then((m) => { setManifest(m); warmUp().catch(() => {}) }).catch((e) => setDataError(String(e.message || e)))
   }, [])
+
+  function resetChat() {
+    abortRef.current?.abort()
+    history.current = []
+    sessionRef.current = null
+    results.current = {}
+    counter.current = 0
+    chatIdRef.current = null
+    chatInfo.current = { createdAt: 0, engine: null }
+    setResultMap({})
+    setExchanges([])
+  }
+
+  // Follow the URL: #/ is a new chat, #/chat/<id> opens a saved one.
+  useEffect(() => {
+    if (routeChatId === chatIdRef.current) return
+    resetChat()
+    setLoadNote(null)
+    if (!routeChatId) return
+    let live = true
+    getChat(routeChatId).then((chat) => {
+      if (!live) return
+      if (!chat) { setLoadNote('That chat was not found in this browser.'); return }
+      chatIdRef.current = chat.id
+      chatInfo.current = { createdAt: chat.createdAt, engine: chat.engine }
+      history.current = chat.apiHistory || []
+      sessionRef.current = chat.sessionId || null
+      results.current = chat.results || {}
+      counter.current = chat.counter || 0
+      setResultMap({ ...results.current })
+      setExchanges(chat.exchanges.map((x) => ({ ...x, images: restoreImages(x.images), status: x.status === 'running' ? 'cancelled' : x.status })))
+    }).catch((e) => live && setLoadNote(`Could not open saved chat: ${e.message || e}`))
+    return () => { live = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeChatId])
+
+  // Auto-save after each answer and after chart edits.
+  useEffect(() => {
+    if (!chatIdRef.current || running || !exchanges.length) return
+    const t = setTimeout(() => {
+      const chat = {
+        id: chatIdRef.current,
+        title: exchanges[0].question.slice(0, 90),
+        createdAt: chatInfo.current.createdAt || Date.now(),
+        updatedAt: Date.now(),
+        engine: chatInfo.current.engine,
+        model: settings.modelCfg.label,
+        exchanges: exchanges.map((x) => ({ ...x, images: stripImages(x.images) })),
+        results: results.current,
+        counter: counter.current,
+        apiHistory: history.current,
+        sessionId: sessionRef.current,
+      }
+      saveChat(chat).then(() => setHistoryKey((k) => k + 1)).catch((e) => console.warn('save failed', e))
+    }, 300)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exchanges, running])
 
   const patch = useCallback((idx, fn) => setExchanges((xs) => xs.map((x, i) => (i === idx ? fn(x) : x))), [])
 
@@ -93,6 +159,17 @@ export default function ChatPage() {
     setInput('')
     setAttachments([])
     setAttachError(null)
+    if (!chatIdRef.current) {
+      chatIdRef.current = newChatId()
+      chatInfo.current = { createdAt: Date.now(), engine }
+      window.location.replace(`#/chat/${chatIdRef.current}`)
+    }
+    // A saved chat continued in the other mode has no model-side memory there; give it a recap.
+    const switched = exchanges.length > 0 && chatInfo.current.engine && chatInfo.current.engine !== engine
+    const recap = switched
+      ? `<earlier_in_this_chat>\n${exchanges.map((x, i) => `${i + 1}. Q: ${x.question}\n   Answer: ${x.charts.at(-1)?.spec.caption || x.note || '(no chart)'}${x.charts.at(-1)?.spec.result_id ? ` [chart data: ${x.charts.at(-1).spec.result_id}]` : ''}`).join('\n')}\nStored results you can still pass to render_chart: ${Object.entries(results.current).map(([id, r]) => `${id} (${r.columns.map((c) => c.name).join(', ')})`).join('; ') || 'none'}\n</earlier_in_this_chat>\n\n`
+      : ''
+    chatInfo.current.engine = engine
     const idx = exchanges.length
     setExchanges((xs) => [...xs, { question: q, images, parts: [], charts: [], usage: [], cost: 0, status: 'running', model: settings.modelCfg.label, billing: engine === 'plan' ? 'plan' : 'api', turns: 0 }])
     setRunning(true)
@@ -101,7 +178,7 @@ export default function ChatPage() {
     const ctrl = new AbortController()
     abortRef.current = ctrl
     const first = engine === 'plan' ? !sessionRef.current : history.current.length === 0
-    const text = first ? `${contextBlock({ manifest, favoriteTeam: settings.favoriteTeam })}\n\n${q}` : q
+    const text = (first ? `${contextBlock({ manifest, favoriteTeam: settings.favoriteTeam })}\n\n` : '') + recap + q
     const lastChart = [...exchanges].reverse().find((x) => x.charts.length)?.charts.at(-1)
     const edited = lastChart?.edited ? `\n\n(The user edited the last chart; current spec: ${JSON.stringify(lastChart.spec)})` : ''
     const snapshot = [...history.current]
@@ -173,13 +250,8 @@ export default function ChatPage() {
   }
 
   function newChat() {
-    abortRef.current?.abort()
-    history.current = []
-    sessionRef.current = null
-    results.current = {}
-    counter.current = 0
-    setResultMap({})
-    setExchanges([])
+    if (window.location.hash === '#/' || !window.location.hash) resetChat()
+    else window.location.hash = '#/'
   }
 
   const onSpecEdit = (exIdx, chartIdx, spec) => {
@@ -196,8 +268,13 @@ export default function ChatPage() {
       {dragging && <div className="drop-overlay" onDragLeave={() => setDragging(false)}><div>Drop an image to ask about it</div></div>}
       <Header settings={settings} update={update} manifest={manifest} dataError={dataError} spend={spend}
         hasKey={!!getApiKey() || mockEnabled()} onKey={() => setKeyModal({ reason: null })} onNew={newChat}
-        bridge={bridge} engine={engine} />
+        bridge={bridge} engine={engine} onHistory={() => setShowHistory(true)} />
+      {showHistory && (
+        <HistoryPanel currentId={chatIdRef.current} refreshKey={historyKey} onClose={() => setShowHistory(false)}
+          onDeleted={(id) => { if (id === chatIdRef.current) newChat() }} />
+      )}
       <main className="chat">
+        {loadNote && <div className="note">{loadNote}</div>}
         {exchanges.length === 0 && (
           <div className="empty">
             <h1>Ask the NFL a question.<br /><span className="muted">Get a chart you can post.</span></h1>

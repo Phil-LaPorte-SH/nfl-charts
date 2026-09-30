@@ -2,10 +2,11 @@ import { MODELS, EFFORTS } from '../llm/models.js'
 import { CURRENT_TEAMS } from '../db/teams.js'
 import { fmtUsd } from '../llm/cost.js'
 
-export default function Header({ settings, update, manifest, dataError, spend, hasKey, onKey, onNew, bridge, engine }) {
+export default function Header({ settings, update, manifest, dataError, spend, hasKey, onKey, onNew, bridge, engine, onHistory }) {
   const s = manifest?.seasons
   return (
     <header className="app-header">
+      <button className="btn btn-sm" onClick={onHistory} title="Saved chats" aria-label="Saved chats">☰</button>
       <div className="brand">
         <span className="brand-mark">🏈</span>
         <span className="brand-name">NFL Charts</span>
