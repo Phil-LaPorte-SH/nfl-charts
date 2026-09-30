@@ -1,4 +1,5 @@
 import { executeTool } from './tools.js'
+import { imageBlocks } from './images.js'
 
 // "Claude plan" mode: questions go to the local Vite dev server, which runs the
 // Claude Code CLI (`claude -p`) signed in with the user's subscription. Tool
@@ -16,11 +17,11 @@ export function getBridgeStatus() {
   return statusPromise
 }
 
-export async function runViaClaudeCode({ prompt, sessionId, model, effort, ctx, signal, onEvent }) {
+export async function runViaClaudeCode({ prompt, images, sessionId, model, effort, ctx, signal, onEvent }) {
   const res = await fetch('/__claude/ask', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ prompt, sessionId, model: model.id, effort: model.effort ? effort : null }),
+    body: JSON.stringify({ prompt, images: imageBlocks(images), sessionId, model: model.id, effort: model.effort ? effort : null }),
     signal,
   })
   if (!res.ok || !res.body) throw new Error(`Local Claude bridge: HTTP ${res.status}`)

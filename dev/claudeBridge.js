@@ -65,7 +65,7 @@ export default function claudeBridge() {
         const system = readFileSync(PROMPT_FILE, 'utf8').trim() + TOOL_NOTE
         const mcp = { mcpServers: { nfl: { type: 'stdio', command: process.execPath, args: [MCP_SCRIPT], env: { NFL_BRIDGE_URL: `http://localhost:${port()}`, NFL_BRIDGE_TOKEN: token } } } }
         const args = [
-          '-p', '--output-format', 'stream-json', '--verbose', '--include-partial-messages',
+          '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--include-partial-messages',
           '--system-prompt', system,
           '--tools', '',
           '--mcp-config', JSON.stringify(mcp), '--strict-mcp-config',
@@ -86,7 +86,9 @@ export default function claudeBridge() {
         sessions.set(token, session)
 
         const child = spawn('claude', args, { cwd: WORKDIR, env: { ...process.env, CLAUDE_CODE_ENTRYPOINT: 'nfl-charts-local' }, stdio: ['pipe', 'pipe', 'pipe'] })
-        child.stdin.end(String(body.prompt || ''))
+        // One user message as stream-json so images can ride along as content blocks.
+        const content = [...(Array.isArray(body.images) ? body.images : []), { type: 'text', text: String(body.prompt || '') }]
+        child.stdin.end(JSON.stringify({ type: 'user', message: { role: 'user', content } }) + '\n')
         let buf = ''
         child.stdout.on('data', (chunk) => {
           buf += chunk

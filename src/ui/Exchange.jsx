@@ -11,7 +11,14 @@ export default function Exchange({ x, results, onSpecEdit, onRetry }) {
   const cacheMiss = x.usage.length > 1 && x.usage.slice(1).every((v) => !v?.cache_read_input_tokens)
   return (
     <section className="exchange">
-      <div className="q">{x.question}</div>
+      <div className="q">
+        {x.images?.length > 0 && (
+          <div className="q-images">
+            {x.images.map((im) => <a key={im.id} href={im.dataUrl} target="_blank" rel="noreferrer"><img src={im.dataUrl} alt={im.name} /></a>)}
+          </div>
+        )}
+        {x.question}
+      </div>
       <div className="a">
         {x.parts.map((p, i) => {
           if (p.kind === 'text') return p.text.trim() && (chartAt < 0 || i < chartAt) ? <p key={i} className="a-text">{p.text}</p> : null
