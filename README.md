@@ -39,6 +39,16 @@ question ──► Claude (your key, from the browser)
   (`#/chat/<id>`). Reopened chats continue where they left off: API-mode chats replay their message history, and
   Claude-plan chats resume the same Claude Code session. Localhost and the hosted site keep separate lists.
 
+## Share links (local only)
+
+In the local app each chart has a **Share link** button. It renders a 2× PNG, writes it with a small page (Open Graph
+preview tags, caption, methodology, the SQL, nflverse credit) into a clone of
+[`nfl-charts-shares`](https://github.com/Phil-LaPorte-SH/nfl-charts-shares) at `../nfl-charts-shares` (or
+`NFL_SHARES_DIR`), commits and pushes. GitHub Pages serves it about 30-60 seconds later at
+`https://phil-laporte-sh.github.io/nfl-charts-shares/s/<id>/`, which unfurls as a preview on Reddit link posts. The
+dialog also gives the direct PNG link and a Markdown link. Everything shared is public; the gallery of all shares is
+at https://phil-laporte-sh.github.io/nfl-charts-shares/.
+
 ## Use your Claude plan instead of an API key (local only)
 
 When you run the app locally with `npm run dev`, it can answer questions through the Claude Code CLI on your machine

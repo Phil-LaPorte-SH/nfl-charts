@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Poster from '../chart/Poster.jsx'
 import ChartEditor from './ChartEditor.jsx'
 import { normalizeSpec } from '../chart/spec.js'
@@ -6,6 +6,8 @@ import { downloadPng, downloadSvg, copyPng } from '../chart/export.js'
 import { EXPORT_MAX_SCALE } from '../chart/layout.js'
 import { useChartAssets } from '../chart/useChartAssets.js'
 import ResultTable from './ResultTable.jsx'
+import ShareDialog from './ShareDialog.jsx'
+import { getShareStatus, publishShare } from '../chart/share.js'
 
 /**
  * A rendered poster with export actions and an inline editor. `spec` is the
@@ -18,6 +20,9 @@ export default function ChartView({ spec: rawSpec, result, onSpecChange, compact
   const [showData, setShowData] = useState(false)
   const [busy, setBusy] = useState('')
   const svgRef = useRef(null)
+  const [canShare, setCanShare] = useState(false)
+  const [share, setShare] = useState(null) // { busy, result, error }
+  useEffect(() => { getShareStatus().then((st) => setCanShare(!!st.available)) }, [])
   const spec = useMemo(() => normalizeSpec(edited || rawSpec), [edited, rawSpec])
 
   const update = (next) => {
@@ -43,6 +48,12 @@ export default function ChartView({ spec: rawSpec, result, onSpecChange, compact
         <button className="btn btn-sm" disabled={!!busy} onClick={() => act('PNG', () => downloadPng(svgRef.current, spec.title, maxScale))}>PNG {maxScale}×</button>
         <button className="btn btn-sm" disabled={!!busy} onClick={() => act('Copy', () => copyPng(svgRef.current, 2))}>{busy === 'Copy' ? 'Copying…' : 'Copy image'}</button>
         <button className="btn btn-sm" disabled={!!busy} onClick={() => act('SVG', () => downloadSvg(svgRef.current, spec.title))}>SVG</button>
+        {canShare && (
+          <button className="btn btn-sm" disabled={!!busy || share?.busy} title="Publish a PNG and preview page to GitHub Pages and get a link to post" onClick={async () => {
+            setShare({ busy: true })
+            try { setShare({ result: await publishShare({ svgEl: svgRef.current, spec, result }) }) } catch (e) { setShare({ error: String(e.message || e) }) }
+          }}>Share link</button>
+        )}
         <span className="spacer" />
         <button className={`btn btn-sm ${showEditor ? 'active' : ''}`} onClick={() => setShowEditor((v) => !v)}>Edit</button>
         {result && <button className={`btn btn-sm ${showData ? 'active' : ''}`} onClick={() => setShowData((v) => !v)}>Data</button>}
@@ -50,6 +61,7 @@ export default function ChartView({ spec: rawSpec, result, onSpecChange, compact
       </div>
       {showEditor && <ChartEditor spec={spec} result={result} teams={teams} onChange={update} />}
       {showData && result && <ResultTable result={result} />}
+      {share && <ShareDialog state={share} title={spec.title} onClose={() => setShare(null)} />}
     </div>
   )
 }

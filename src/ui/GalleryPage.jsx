@@ -8,7 +8,7 @@ function Fixture({ f }) {
   useEffect(() => {
     let live = true
     runQuery(f.sql)
-      .then((res) => live && setState({ res, spec: f.build(res) }))
+      .then((res) => live && setState({ res: { ...res, sql: f.sql }, spec: f.build(res) }))
       .catch((e) => live && setState({ error: String(e.message || e) }))
     return () => { live = false }
   }, [f])

@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import claudeBridge from './dev/claudeBridge.js'
+import shareServer from './dev/shareServer.js'
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { resolve, normalize, extname } from 'node:path'
 
@@ -67,7 +68,7 @@ function devData() {
 
 export default defineConfig({
   base: '/nfl-charts/',
-  plugins: [react(), devData(), claudeBridge()],
+  plugins: [react(), devData(), claudeBridge(), shareServer()],
   optimizeDeps: { exclude: ['@duckdb/duckdb-wasm'] },
   worker: { format: 'es' },
   server: {
