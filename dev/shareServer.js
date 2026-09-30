@@ -65,7 +65,7 @@ ${s.subtitle ? `<p class="muted">${esc(s.subtitle)}</p>` : ''}
 ${s.caption ? `<p>${esc(s.caption)}</p>` : ''}
 ${s.footnote ? `<p class="muted">${esc(s.footnote)}</p>` : ''}
 <p class="muted">Source: ${esc(s.source)}. Data from <a href="https://github.com/nflverse">nflverse</a> (CC BY 4.0).
-Made with <a href="https://github.com/Phil-LaPorte-SH/nfl-charts">NFL Charts</a> · ${esc(s.date)}</p>
+Made with NFL Charts · ${esc(s.date)}</p>
 ${s.sql?.length ? `<details><summary>How this was calculated (SQL)</summary>${s.sql.map((q) => `<pre>${esc(q)}</pre>`).join('')}</details>` : ''}
 </main></body></html>
 `
@@ -79,7 +79,7 @@ function indexPage(list, base) {
 ${list[0] ? `<meta property="og:image" content="${base}s/${list[0].id}/chart.png">` : ''}
 <style>${STYLE}</style></head><body><main>
 <h1>Shared charts</h1>
-<p class="muted">Made with <a href="https://github.com/Phil-LaPorte-SH/nfl-charts">NFL Charts</a> from <a href="https://github.com/nflverse">nflverse</a> data.</p>
+<p class="muted">Made with NFL Charts from <a href="https://github.com/nflverse">nflverse</a> data.</p>
 <div class="grid">
 ${list.map((s) => `<a class="card" href="s/${s.id}/"><img src="s/${s.id}/chart.png" alt="" loading="lazy"><div>${esc(s.title)}<small>${esc(s.date)}</small></div></a>`).join('\n')}
 </div></main></body></html>
@@ -87,7 +87,7 @@ ${list.map((s) => `<a class="card" href="s/${s.id}/"><img src="s/${s.id}/chart.p
 }
 
 async function status() {
-  if (!existsSync(join(DIR, '.git'))) return { available: false, reason: `No shares repo at ${DIR}. Clone Phil-LaPorte-SH/nfl-charts-shares there, or set NFL_SHARES_DIR.` }
+  if (!existsSync(join(DIR, '.git'))) return { available: false, reason: `No shares repo at ${DIR}. Clone your shares repo there, or set NFL_SHARES_DIR.` }
   try {
     return { available: true, base: await pagesBase(), dir: DIR }
   } catch (e) {
