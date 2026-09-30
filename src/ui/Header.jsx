@@ -2,7 +2,7 @@ import { MODELS, EFFORTS } from '../llm/models.js'
 import { CURRENT_TEAMS } from '../db/teams.js'
 import { fmtUsd } from '../llm/cost.js'
 
-export default function Header({ settings, update, manifest, dataError, spend, hasKey, onKey, onNew }) {
+export default function Header({ settings, update, manifest, dataError, spend, hasKey, onKey, onNew, bridge, engine }) {
   const s = manifest?.seasons
   return (
     <header className="app-header">
@@ -15,6 +15,14 @@ export default function Header({ settings, update, manifest, dataError, spend, h
         {manifest ? `${s.min}–${s.max} · thru ${s.current} Wk ${s.last_completed_week}` : dataError ? 'Data unavailable' : 'Loading data…'}
       </span>
       <span className="spacer" />
+      {bridge?.available && (
+        <label className="hdr-field" title={engine === 'plan' ? `Using the local Claude Code CLI signed in as ${bridge.email}` : 'Using your Anthropic API key'}>
+          <select value={engine} onChange={(e) => update({ engine: e.target.value === 'plan' ? 'auto' : 'api' })}>
+            <option value="plan">Claude {bridge.plan ? bridge.plan[0].toUpperCase() + bridge.plan.slice(1) : ''} plan (local)</option>
+            <option value="api">API key</option>
+          </select>
+        </label>
+      )}
       <label className="hdr-field" title="Model">
         <select value={settings.model} onChange={(e) => update({ model: e.target.value })}>
           {MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
@@ -38,8 +46,8 @@ export default function Header({ settings, update, manifest, dataError, spend, h
           <option value="system">Auto</option><option value="light">Light</option><option value="dark">Dark</option>
         </select>
       </label>
-      <span className="pill" title={`${spend.n} requests from this browser`}>Spent {fmtUsd(spend.total)}</span>
-      <button className={`btn btn-sm ${hasKey ? '' : 'btn-primary'}`} onClick={onKey}>{hasKey ? 'API key ✓' : 'Add API key'}</button>
+      {engine !== 'plan' && <span className="pill" title={`${spend.n} requests from this browser`}>API spend {fmtUsd(spend.total)}</span>}
+      {engine !== 'plan' && <button className={`btn btn-sm ${hasKey ? '' : 'btn-primary'}`} onClick={onKey}>{hasKey ? 'API key ✓' : 'Add API key'}</button>}
       <button className="btn btn-sm" onClick={onNew} title="Start a new conversation">New</button>
       <a className="btn btn-sm" href="#/dev/gallery" title="Chart gallery">Gallery</a>
     </header>

@@ -6,13 +6,15 @@ import { sumUsage, fmtUsd } from '../llm/cost.js'
 export default function Exchange({ x, results, onSpecEdit, onRetry }) {
   const [showThinking, setShowThinking] = useState(false)
   const u = sumUsage(x.usage)
+  // Text after a successful chart just restates the caption; hide it.
+  const chartAt = x.parts.findIndex((p) => p.kind === 'tool' && p.name === 'render_chart' && p.status === 'done' && !p.output?.is_error)
   const cacheMiss = x.usage.length > 1 && x.usage.slice(1).every((v) => !v?.cache_read_input_tokens)
   return (
     <section className="exchange">
       <div className="q">{x.question}</div>
       <div className="a">
         {x.parts.map((p, i) => {
-          if (p.kind === 'text') return p.text.trim() ? <p key={i} className="a-text">{p.text}</p> : null
+          if (p.kind === 'text') return p.text.trim() && (chartAt < 0 || i < chartAt) ? <p key={i} className="a-text">{p.text}</p> : null
           if (p.kind === 'thinking') {
             if (!p.text.trim()) return null
             return (
@@ -40,9 +42,9 @@ export default function Exchange({ x, results, onSpecEdit, onRetry }) {
         )}
         {x.usage.length > 0 && (
           <div className="cost-line" title={`input ${u.input_tokens} · cache write ${u.cache_creation_input_tokens} · cache read ${u.cache_read_input_tokens} · output ${u.output_tokens}`}>
-            {x.model} · {x.usage.length} turn{x.usage.length > 1 ? 's' : ''} · {(u.input_tokens + u.cache_creation_input_tokens + u.cache_read_input_tokens).toLocaleString()} in / {u.output_tokens.toLocaleString()} out
+            {x.model} · {x.turns} turn{x.turns === 1 ? '' : 's'} · {(u.input_tokens + u.cache_creation_input_tokens + u.cache_read_input_tokens).toLocaleString()} in / {u.output_tokens.toLocaleString()} out
             {u.cache_read_input_tokens > 0 && ` · ${Math.round((u.cache_read_input_tokens / (u.input_tokens + u.cache_creation_input_tokens + u.cache_read_input_tokens)) * 100)}% cached`}
-            {cacheMiss && <span className="warn-text"> · cache miss</span>} · <b>{fmtUsd(x.cost)}</b>
+            {cacheMiss && x.billing !== 'plan' && <span className="warn-text"> · cache miss</span>} · <b>{x.billing === 'plan' ? 'Claude plan, no API charge' : fmtUsd(x.cost)}</b>
           </div>
         )}
       </div>

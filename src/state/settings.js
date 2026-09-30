@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { DEFAULT_MODEL, modelById } from '../llm/models.js'
 
 const KEY = 'nflviz.settings'
-const DEFAULTS = { model: DEFAULT_MODEL, effort: 'medium', favoriteTeam: '', theme: 'system' }
+const DEFAULTS = { model: DEFAULT_MODEL, effort: 'medium', favoriteTeam: '', theme: 'system', engine: 'auto' }
 
 function read() {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') } } catch { return { ...DEFAULTS } }

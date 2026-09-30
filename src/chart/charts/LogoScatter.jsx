@@ -1,9 +1,10 @@
 import { scaleLinear } from 'd3-scale'
 import { extent } from 'd3-array'
 import { Logo } from '../primitives.jsx'
-import { measure, font } from '../text.js'
+import { measure, font, fitSize, truncate } from '../text.js'
 import { isHighlighted, hasHighlight, refValues, humanize } from './common.js'
 import { fmt, guessFormat } from '../format.js'
+import { FONT_SANS } from '../fonts.js'
 
 function Quad({ text, ax, ay, plot, theme, u, qFs }) {
   if (!text) return null
@@ -39,6 +40,11 @@ export default function LogoScatter({ box, spec, rows, theme, teams, logos, u })
   y.range([plot.y + plot.h, plot.y])
   const xTicks = x.ticks(7)
 
+  // axis titles shrink to fit their axis (letter-spacing adds ~1u per char)
+  const xTitle = (spec.format.x_title || humanize(e.x)).toUpperCase()
+  const yTitle = (spec.format.y_title || humanize(e.y)).toUpperCase()
+  const xTitleFs = fitSize(xTitle, 800, FONT_SANS, plot.w - xTitle.length * u, titleFs, 12)
+  const yTitleFs = fitSize(yTitle, 800, FONT_SANS, plot.h - yTitle.length * u, titleFs, 12)
   const xr = refValues(spec, 'x', data, e.x)
   const yr = refValues(spec, 'y', data, e.y)
   const size = Math.max(36 * u, Math.min(70 * u, plot.w / 13))
@@ -53,20 +59,12 @@ export default function LogoScatter({ box, spec, rows, theme, teams, logos, u })
       {yTicks.map((t) => <line key={`gy${t}`} x1={plot.x} x2={plot.x + plot.w} y1={y(t)} y2={y(t)} stroke={theme.grid} strokeWidth={1 * u} />)}
       {xTicks.map((t) => <text key={`tx${t}`} x={x(t)} y={plot.y + plot.h + 10 * u} dy="0.8em" textAnchor="middle" fontSize={tickFs} fill={theme.ink2} style={{ fontVariantNumeric: 'tabular-nums' }}>{fx(t)}</text>)}
       {yTicks.map((t) => <text key={`ty${t}`} x={plot.x - 10 * u} y={y(t)} dy="0.35em" textAnchor="end" fontSize={tickFs} fill={theme.ink2} style={{ fontVariantNumeric: 'tabular-nums' }}>{fy(t)}</text>)}
-      <text x={plot.x + plot.w / 2} y={box.y + box.h} textAnchor="middle" fontSize={titleFs} fontWeight={800} letterSpacing={1 * u} fill={theme.ink}>
-        {(spec.format.x_title || humanize(e.x)).toUpperCase()}
+      <text x={plot.x + plot.w / 2} y={box.y + box.h} textAnchor="middle" fontSize={xTitleFs} fontWeight={800} letterSpacing={1 * u} fill={theme.ink}>
+        {truncate(xTitle, font(xTitleFs, 800), plot.w)}
       </text>
-      <text transform={`translate(${box.x + titleFs * 0.9},${plot.y + plot.h / 2}) rotate(-90)`} textAnchor="middle" fontSize={titleFs} fontWeight={800} letterSpacing={1 * u} fill={theme.ink}>
-        {(spec.format.y_title || humanize(e.y)).toUpperCase()}
+      <text transform={`translate(${box.x + titleFs * 0.9},${plot.y + plot.h / 2}) rotate(-90)`} textAnchor="middle" fontSize={yTitleFs} fontWeight={800} letterSpacing={1 * u} fill={theme.ink}>
+        {truncate(yTitle, font(yTitleFs, 800), plot.h)}
       </text>
-      {q && (
-        <>
-          <Quad text={q.top_left} ax="left" ay="top" plot={plot} theme={theme} u={u} qFs={qFs} />
-          <Quad text={q.top_right} ax="right" ay="top" plot={plot} theme={theme} u={u} qFs={qFs} />
-          <Quad text={q.bottom_left} ax="left" ay="bottom" plot={plot} theme={theme} u={u} qFs={qFs} />
-          <Quad text={q.bottom_right} ax="right" ay="bottom" plot={plot} theme={theme} u={u} qFs={qFs} />
-        </>
-      )}
       {xr.map((r, i) => (
         <g key={`xr${i}`}>
           <line x1={x(r.value)} x2={x(r.value)} y1={plot.y} y2={plot.y + plot.h} stroke={theme.accent} strokeWidth={2 * u} strokeDasharray={`${8 * u} ${6 * u}`} opacity={0.85} />
@@ -90,6 +88,14 @@ export default function LogoScatter({ box, spec, rows, theme, teams, logos, u })
         const s = hl ? size * 1.25 : size
         return <Logo key={r[e.team]} x={x(r[e.x])} y={y(r[e.y])} size={s} abbr={r[e.team]} logos={logos} teams={teams} opacity={anyHl && !hl ? 0.4 : 1} title={`${r[e.team]}: ${fx(r[e.x])}, ${fy(r[e.y])}`} />
       })}
+      {q && (
+        <>
+          <Quad text={q.top_left} ax="left" ay="top" plot={plot} theme={theme} u={u} qFs={qFs} />
+          <Quad text={q.top_right} ax="right" ay="top" plot={plot} theme={theme} u={u} qFs={qFs} />
+          <Quad text={q.bottom_left} ax="left" ay="bottom" plot={plot} theme={theme} u={u} qFs={qFs} />
+          <Quad text={q.bottom_right} ax="right" ay="bottom" plot={plot} theme={theme} u={u} qFs={qFs} />
+        </>
+      )}
     </g>
   )
 }

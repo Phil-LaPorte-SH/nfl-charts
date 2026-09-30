@@ -30,6 +30,21 @@ question ──► Claude (your key, from the browser)
   stacked columns, donuts, tables, and stat tiles; portrait, square, landscape or story sizes; team, light or dark
   themes. Every chart can be edited (title, type, highlight, theme, size) without another model call.
 
+## Use your Claude plan instead of an API key (local only)
+
+When you run the app locally with `npm run dev`, it can answer questions through the Claude Code CLI on your machine
+instead of the API. That uses whatever account `claude` is signed into, such as a Pro or Max plan, so there are no API
+charges; questions count toward the plan's usage limits. The header shows a "Claude … plan (local)" option when the
+CLI is found and signed in (`claude auth status`), and it is the default in that case.
+
+How it works: the dev server runs `claude -p` with this app's system prompt, no built-in tools, your personal
+settings and other MCP servers ignored, and one MCP server (`dev/nfl-mcp.mjs`) exposing the four app tools. Each tool
+call is relayed back to the browser and runs there, exactly as in API-key mode. Follow-up questions resume the same
+Claude Code session. Requires Claude Code 2.1.280 or newer for Opus 5.5 (`claude update`).
+
+This is for your own use on your own machine. The hosted site has no bridge and always uses an API key; don't expose
+the dev server to other people.
+
 ## Cost
 
 You pay Anthropic for your own questions. With the default model a question typically costs $0.05-0.15

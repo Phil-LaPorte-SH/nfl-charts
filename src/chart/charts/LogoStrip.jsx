@@ -16,6 +16,19 @@ function laneLayout(items, pos, size) {
   return { placed: out, laneCount: lanes.length }
 }
 
+/** A label on a backing pill so logos underneath can't obscure it. */
+function Tag({ x, y, text, anchor, size, color, theme, u }) {
+  const w = measure(text, font(size, 800)) + 16 * u
+  const h = size * 1.5
+  const left = anchor === 'end' ? x - w : x
+  return (
+    <g>
+      <rect x={left} y={y - h / 2} width={w} height={h} rx={h / 2} fill={theme.bg} opacity={0.92} />
+      <text x={left + w / 2} y={y} dy="0.35em" textAnchor="middle" fontSize={size} fontWeight={800} fill={color}>{text}</text>
+    </g>
+  )
+}
+
 export default function LogoStrip({ box, spec, rows, theme, teams, logos, u }) {
   const e = spec.encoding
   const vKey = e.value
@@ -56,10 +69,7 @@ export default function LogoStrip({ box, spec, rows, theme, teams, logos, u }) {
           </g>
         ))}
         {refs.map((r, i) => (
-          <g key={i}>
-            <line x1={axisX} x2={box.x + box.w} y1={scale(r.value)} y2={scale(r.value)} stroke={theme.ink2} strokeWidth={2 * u} strokeDasharray={`${8 * u} ${6 * u}`} opacity={0.7} />
-            <text x={box.x + box.w} y={scale(r.value) - 8 * u} textAnchor="end" fontSize={16 * u} fontWeight={600} fill={theme.ink2}>{(r.label || 'Avg').toUpperCase()} {fmtV(r.value)}</text>
-          </g>
+          <line key={i} x1={axisX} x2={box.x + box.w} y1={scale(r.value)} y2={scale(r.value)} stroke={theme.ink2} strokeWidth={2 * u} strokeDasharray={`${8 * u} ${6 * u}`} opacity={0.7} />
         ))}
         {layout.placed.sort((a, b) => isHighlighted(spec, a) - isHighlighted(spec, b)).map((r) => {
           const hl = anyHl && isHighlighted(spec, r)
@@ -68,10 +78,13 @@ export default function LogoStrip({ box, spec, rows, theme, teams, logos, u }) {
           return (
             <g key={r[e.team]}>
               <Logo x={cx} y={cy} size={size} abbr={r[e.team]} logos={logos} teams={teams} opacity={anyHl && !hl ? 0.35 : 1} title={`${r[e.team]}: ${fmtV(r[vKey])}`} />
-              {hl && <text x={cx + size * 0.62} y={cy} dy="0.35em" fontSize={24 * u} fontWeight={800} fill={theme.highlight}>{r[e.team]} {fmtV(r[vKey])}</text>}
             </g>
           )
         })}
+        {refs.map((r, i) => <Tag key={`ref${i}`} x={box.x + box.w} y={scale(r.value)} anchor="end" text={`${(r.label || 'Avg').toUpperCase()} ${fmtV(r.value)}`} size={16 * u} color={theme.ink2} theme={theme} u={u} />)}
+        {anyHl && layout.placed.filter((r) => isHighlighted(spec, r)).map((r) => (
+          <Tag key={`hl${r[e.team]}`} x={laneX(r.lane) + size * 0.62} y={scale(r[vKey])} anchor="start" text={`${r[e.team]} ${fmtV(r[vKey])}`} size={24 * u} color={theme.highlight} theme={theme} u={u} />
+        ))}
       </g>
     )
   }

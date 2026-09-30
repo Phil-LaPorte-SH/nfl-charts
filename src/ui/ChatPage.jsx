@@ -11,6 +11,7 @@ import { contextBlock } from '../llm/prompt/system.js'
 import { classifyError } from '../llm/errors.js'
 import { addSpend, getSpend } from '../llm/cost.js'
 import { getMockClient, mockEnabled } from '../llm/mockClient.js'
+import { getBridgeStatus, runViaClaudeCode } from '../llm/claudeCodeRunner.js'
 
 const EXAMPLES = [
   'Which teams draw the most defensive penalties that save a failed 3rd or 4th down? Mahomes era, highlight KC.',
@@ -48,8 +49,12 @@ export default function ChatPage() {
   const abortRef = useRef(null)
   const bottomRef = useRef(null)
   const pendingRef = useRef('')
+  const sessionRef = useRef(null)
+  const [bridge, setBridge] = useState({ available: false })
+  const engine = !mockEnabled() && bridge.available && settings.engine !== 'api' ? 'plan' : 'api'
 
   useEffect(() => { applyThemeAttr(settings.theme) }, [settings.theme])
+  useEffect(() => { getBridgeStatus().then(setBridge) }, [])
   useEffect(() => {
     getManifest().then((m) => { setManifest(m); warmUp().catch(() => {}) }).catch((e) => setDataError(String(e.message || e)))
   }, [])
@@ -59,22 +64,22 @@ export default function ChatPage() {
   async function ask(question) {
     const q = question.trim()
     if (!q || running) return
-    const client = mockEnabled() ? getMockClient() : getClient()
-    if (!client) { pendingRef.current = q; setKeyModal({ reason: null }); return }
+    const client = engine === 'plan' ? null : mockEnabled() ? getMockClient() : getClient()
+    if (engine === 'api' && !client) { pendingRef.current = q; setKeyModal({ reason: null }); return }
     setInput('')
     const idx = exchanges.length
-    setExchanges((xs) => [...xs, { question: q, parts: [], charts: [], usage: [], cost: 0, status: 'running', model: settings.modelCfg.label }])
+    setExchanges((xs) => [...xs, { question: q, parts: [], charts: [], usage: [], cost: 0, status: 'running', model: settings.modelCfg.label, billing: engine === 'plan' ? 'plan' : 'api', turns: 0 }])
     setRunning(true)
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
 
     const ctrl = new AbortController()
     abortRef.current = ctrl
-    const first = history.current.length === 0
+    const first = engine === 'plan' ? !sessionRef.current : history.current.length === 0
     const text = first ? `${contextBlock({ manifest, favoriteTeam: settings.favoriteTeam })}\n\n${q}` : q
     const lastChart = [...exchanges].reverse().find((x) => x.charts.length)?.charts.at(-1)
     const edited = lastChart?.edited ? `\n\n(The user edited the last chart; current spec: ${JSON.stringify(lastChart.spec)})` : ''
     const snapshot = [...history.current]
-    appendUser(history.current, [{ type: 'text', text: text + edited }])
+    if (engine === 'api') appendUser(history.current, [{ type: 'text', text: text + edited }])
 
     const ctx = {
       results: results.current,
@@ -107,18 +112,26 @@ export default function ChatPage() {
             ? { ...p, input: ev.input ?? p.input, status: ev.type === 'tool_done' ? 'done' : 'running', output: ev.result ?? p.output }
             : p)),
         }))
+      } else if (ev.type === 'usage' && ev.billing === 'plan') {
+        patch(idx, (x) => ({ ...x, usage: [...x.usage, ev.usage], turns: x.turns + (ev.turns || 1) }))
       } else if (ev.type === 'usage') {
         if (!mockEnabled()) {
           const s = addSpend(ev.cost)
           if (s) setSpend(s)
         }
-        patch(idx, (x) => ({ ...x, usage: [...x.usage, ev.usage], cost: x.cost + ev.cost }))
+        patch(idx, (x) => ({ ...x, usage: [...x.usage, ev.usage], cost: x.cost + ev.cost, turns: x.turns + 1 }))
       }
     }
 
     try {
-      const out = await runAgent({ client, model: settings.modelCfg, effort: settings.effort, history: history.current, ctx, signal: ctrl.signal, onEvent })
-      patch(idx, (x) => ({ ...x, status: out.kind === 'refusal' ? 'error' : 'done', note: out.kind === 'refusal' ? out.message : out.kind === 'truncated' ? 'The response hit the output limit. Try a narrower question.' : out.kind === 'turn_cap' ? 'Stopped after the tool budget.' : null }))
+      if (engine === 'plan') {
+        const out = await runViaClaudeCode({ prompt: text + edited, sessionId: sessionRef.current, model: settings.modelCfg, effort: settings.effort, ctx, signal: ctrl.signal, onEvent })
+        sessionRef.current = out.sessionId
+        patch(idx, (x) => ({ ...x, status: out.kind === 'error' ? 'error' : 'done', note: out.kind === 'error' ? out.message : null }))
+      } else {
+        const out = await runAgent({ client, model: settings.modelCfg, effort: settings.effort, history: history.current, ctx, signal: ctrl.signal, onEvent })
+        patch(idx, (x) => ({ ...x, status: out.kind === 'refusal' ? 'error' : 'done', note: out.kind === 'refusal' ? out.message : out.kind === 'truncated' ? 'The response hit the output limit. Try a narrower question.' : out.kind === 'turn_cap' ? 'Stopped after the tool budget.' : null }))
+      }
     } catch (e) {
       const err = classifyError(e)
       // Keep history valid: drop anything this question appended if the API call failed mid-way.
@@ -136,6 +149,7 @@ export default function ChatPage() {
   function newChat() {
     abortRef.current?.abort()
     history.current = []
+    sessionRef.current = null
     results.current = {}
     counter.current = 0
     setResultMap({})
@@ -149,12 +163,14 @@ export default function ChatPage() {
   return (
     <div className="app">
       <Header settings={settings} update={update} manifest={manifest} dataError={dataError} spend={spend}
-        hasKey={!!getApiKey() || mockEnabled()} onKey={() => setKeyModal({ reason: null })} onNew={newChat} />
+        hasKey={!!getApiKey() || mockEnabled()} onKey={() => setKeyModal({ reason: null })} onNew={newChat}
+        bridge={bridge} engine={engine} />
       <main className="chat">
         {exchanges.length === 0 && (
           <div className="empty">
             <h1>Ask the NFL a question.<br /><span className="muted">Get a chart you can post.</span></h1>
-            <p className="muted">Every play since 1999 from nflverse, queried in your browser. {mockEnabled() && <b>(mock model: dev only)</b>}</p>
+            <p className="muted">Every play since 1999 from nflverse, queried in your browser. {mockEnabled() && <b>(mock model: dev only)</b>}
+              {engine === 'plan' && <> Answers use your Claude {bridge.plan ? bridge.plan[0].toUpperCase() + bridge.plan.slice(1) : ''} plan through the local Claude Code CLI, with no API charges.</>}</p>
             <div className="examples">
               {EXAMPLES.map((e) => <button key={e} className="example" onClick={() => ask(e)}>{e}</button>)}
             </div>

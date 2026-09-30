@@ -3,6 +3,7 @@ import { getManifest } from './manifest.js'
 import { fetchCached } from './cache.js'
 import { canonTeamMacroSql } from './teams.js'
 import { dataUrl } from '../config.js'
+import { VIEW_NAMES as SHARED_VIEW_NAMES } from './viewNames.js'
 
 /*
  * Views the rest of the app (and the LLM) query. Each view is backed by one or
@@ -44,6 +45,7 @@ export const VIEWS = {
 }
 
 export const VIEW_NAMES = Object.keys(VIEWS)
+if (VIEW_NAMES.join() !== SHARED_VIEW_NAMES.join()) console.warn('viewNames.js is out of sync with VIEWS')
 const VIEW_RE = new RegExp(`\\b(${VIEW_NAMES.join('|')})\\b`, 'gi')
 
 // Registered virtual file name inside DuckDB. Keeps the path (so hive
