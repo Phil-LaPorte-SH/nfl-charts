@@ -30,12 +30,12 @@ export default function ShareDialog({ state, title, onClose }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal share-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-labelledby="share-title">
         <h2 id="share-title">Share link</h2>
-        {state.busy && <p className="working"><span className="spinner" /> Rendering and publishing to GitHub…</p>}
+        {state.busy && <p className="working"><span className="spinner" /> Rendering and publishing…</p>}
         {state.error && <div className="error-box">{state.error}</div>}
         {out && (
           <>
             <p className={live ? 'ok-text' : 'muted'}>
-              {live === null && <><span className="spinner inline" /> Published. GitHub Pages needs about a minute before these links work; until then they show a 404. You can copy them now, but wait for the green “Live” before opening or posting.</>}
+              {live === null && <><span className="spinner inline" /> Published. Checking the links respond (usually a few seconds)…</>}
               {live === true && '● Live. The links work now.'}
               {live === false && 'Still not live after 4 minutes. The links should work shortly; check the repo’s Pages build if not.'}
             </p>

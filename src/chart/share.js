@@ -2,7 +2,7 @@ import { svgToPngBlob } from './export.js'
 import { bytesToBase64 } from './fonts.js'
 import { ASPECT_SIZES } from './layout.js'
 
-// Publishing goes through the local dev server (git push to the shares repo),
+// Publishing goes through the local dev server (Cloudflare Pages deploy),
 // so it only exists in dev builds.
 let statusPromise = null
 export function getShareStatus() {
@@ -31,7 +31,7 @@ export async function publishShare({ svgEl, spec, result }) {
   return out
 }
 
-/** Resolve true once GitHub Pages serves the file (usually 30-90 s after push). */
+/** Resolve true once the host serves the file (Cloudflare Pages: usually seconds). */
 export async function waitUntilLive(url, { signal, timeoutMs = 240000 } = {}) {
   const t0 = Date.now()
   while (Date.now() - t0 < timeoutMs) {

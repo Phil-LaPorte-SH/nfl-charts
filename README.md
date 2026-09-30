@@ -41,13 +41,19 @@ question ──► Claude (your key, from the browser)
 
 ## Share links (local only)
 
-In the local app each chart has a **Share link** button. It renders a 2× PNG, writes it with a small page (Open Graph
-preview tags, caption, methodology, the SQL, nflverse credit) into a clone of
-[`nfl-charts-shares`](https://github.com/Phil-LaPorte-SH/nfl-charts-shares) at `../nfl-charts-shares` (or
-`NFL_SHARES_DIR`), commits and pushes. GitHub Pages serves it about 30-60 seconds later at
-`https://phil-laporte-sh.github.io/nfl-charts-shares/s/<id>/`, which unfurls as a preview on Reddit link posts. The
-dialog also gives the direct PNG link and a Markdown link. Everything shared is public; the gallery of all shares is
-at https://phil-laporte-sh.github.io/nfl-charts-shares/.
+In the local app each chart has a **Share link** button. It renders a 2× PNG and a small page (Open Graph preview
+tags, caption, methodology, the SQL, nflverse credit), and deploys them to a Cloudflare Pages project. The link
+(`https://<project>.pages.dev/s/<id>/`) unfurls as a preview on Reddit link posts and is not tied to a GitHub account.
+Shares are kept in a local folder (`../gridiron-charts`, or `NFL_SHARES_DIR`) that is never pushed anywhere.
+
+One-time setup:
+
+```bash
+npx wrangler login              # Cloudflare account, in the browser
+node dev/setup-shares.mjs       # creates the Pages project (NFL_SHARES_PROJECT, default gridiron-charts) and deploys
+```
+
+Remove a share: `node dev/remove-share.mjs <share-id>`. Everything shared is public.
 
 ## Use your Claude plan instead of an API key (local only)
 
